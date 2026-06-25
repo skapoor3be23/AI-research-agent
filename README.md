@@ -62,7 +62,11 @@ Visit http://127.0.0.1:8000/docs for interactive API documentation.
 - Similarity search can miss information split across non-adjacent chunks in densely structured documents.
 - The free-tier web search API works best for well-known topics; limited coverage for breaking news.
 - Conversation memory is session-based and does not persist after restart.
-
+- The system answers only from information explicitly stated in the
+  document. It does not perform calculations the document leaves as
+  an exercise (e.g. "calculate the profit if output is 20 units" when
+  only the cost function is given) - it correctly declines rather than
+  guessing.
 ## Credits
 
 Built as part of a self-directed AI/ML learning sprint. Architecture and individual features were researched, implemented, and tested independently.
