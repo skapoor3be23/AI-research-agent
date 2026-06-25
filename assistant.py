@@ -1,3 +1,4 @@
+import os
 from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
@@ -7,20 +8,20 @@ from search import web_search
 load_dotenv()
 
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-vectorstore = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
 RELEVANCE_THRESHOLD = 0.7
 
+# Starts as None. If a saved index exists on disk (built via
+# "python ingest.py"), it loads automatically so the CLI and API
+# keep working. The Streamlit app can replace this at runtime after
+# a user uploads PDFs - that's what enables multi-document support.
+vectorstore = None
+if os.path.exists("faiss_index"):
+    vectorstore = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+
 
 def rewrite_question(question, history):
-    """
-    Follow-up questions often use pronouns (its, that, this) that refer
-    to something from earlier in the conversation. Plain similarity search
-    can't resolve pronouns - it only matches on the literal words in the
-    question. So before retrieval, we ask the LLM to rewrite the question
-    into a standalone version using the last exchange as context.
-    """
     if not history:
         return question
 
@@ -77,8 +78,13 @@ def get_history_context(history):
 
 
 def document_answer(question, history_context):
-    results = vectorstore.similarity_search_with_score(question, k=3)
+    if vectorstore is None:
+        return (
+            "No documents have been loaded yet. Upload a PDF in the "
+            "sidebar first, or run ingest.py to build a local index."
+        ), []
 
+    results = vectorstore.similarity_search_with_score(question, k=3)
     best_score = results[0][1]
 
     if best_score > RELEVANCE_THRESHOLD:
@@ -101,8 +107,10 @@ def document_answer(question, history_context):
     response = llm.invoke(prompt)
     sources = []
     for doc in docs:
+        filename = doc.metadata.get("filename") or doc.metadata.get("source", "document")
+        filename = os.path.basename(filename)
         page = doc.metadata.get("page", "?")
-        sources.append("Page " + str(page))
+        sources.append(filename + " - Page " + str(page))
 
     return response.content, sources
 

@@ -1,3 +1,4 @@
+import os
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -6,31 +7,38 @@ from langchain_community.vectorstores import FAISS
 
 load_dotenv()
 
-# Step 1: Load the PDF — one Document object per page
-loader = PyPDFLoader("test.pdf")
-pages = loader.load()
-print(f"Loaded {len(pages)} pages")
-
-# Step 2: Split into chunks
-splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-chunks = splitter.split_documents(pages)
-print(f"Created {len(chunks)} chunks")
-
-# Step 3: Embed and store in FAISS
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
-vectorstore = FAISS.from_documents(chunks, embeddings)
-print("FAISS vector store built successfully")
 
-# Step 4: Save to disk
-vectorstore.save_local("faiss_index")
-print("Saved to faiss_index/")
-# chunk_size=1000: long enough to capture a complete thought/question,
-# short enough for precise retrieval. Trade-off observed today: dense exam
-# papers with multi-part questions can still split related sub-parts
-# across separate chunks, since 1000 chars doesn't always capture an
-# entire multi-part question block.
-#
-# chunk_overlap=200: helps prevent a sentence from being cut mid-way
-# between chunks, but doesn't fully solve cross-chunk relationships
-# (e.g. a table in one chunk, its follow-up question in the next).
-splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+
+def build_vectorstore(file_paths):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    all_chunks = []
+
+    for path in file_paths:
+        loader = PyPDFLoader(path)
+        pages = loader.load()
+        chunks = splitter.split_documents(pages)
+
+        filename = os.path.basename(path)
+        for chunk in chunks:
+            chunk.metadata["filename"] = filename
+
+        all_chunks.extend(chunks)
+
+    if len(all_chunks) == 0:
+        raise ValueError(
+            "No text could be extracted from the uploaded file(s). "
+            "This usually means the PDF is a scanned image with no "
+            "selectable text. Try a different PDF that has real text "
+            "(not just scanned pages)."
+        )
+
+    vectorstore = FAISS.from_documents(all_chunks, embeddings)
+    return vectorstore, len(all_chunks)
+
+
+if __name__ == "__main__":
+    vectorstore, chunk_count = build_vectorstore(["test.pdf"])
+    print(f"Created {chunk_count} chunks")
+    vectorstore.save_local("faiss_index")
+    print("Saved to faiss_index/")

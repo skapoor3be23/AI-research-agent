@@ -67,6 +67,7 @@ Visit http://127.0.0.1:8000/docs for interactive API documentation.
   an exercise (e.g. "calculate the profit if output is 20 units" when
   only the cost function is given) - it correctly declines rather than
   guessing.
+
 ## Credits
 
 Built as part of a self-directed AI/ML learning sprint. Architecture and individual features were researched, implemented, and tested independently.
