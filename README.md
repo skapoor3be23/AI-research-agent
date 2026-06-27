@@ -1,4 +1,5 @@
 # AI Research Assistant - Multi-Source RAG with Intelligent Routing
+**Live Demo:** https://ai-research-agent-kjhzsnmkksaryvscgozlph.streamlit.app/
 
 An AI-powered research assistant that intelligently decides where to look before answering - your documents, the live web, or general knowledge - instead of relying on a single static source.
 
